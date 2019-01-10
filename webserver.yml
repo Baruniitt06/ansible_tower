@@ -1,5 +1,5 @@
 - name: Install Apache and start the service
-  hosts: webservers
+  hosts: terminalnode01.ap-south-1.compute.internal
   become: yes
   vars:
     web_pkg: httpd
