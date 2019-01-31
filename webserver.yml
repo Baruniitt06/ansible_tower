@@ -1,5 +1,5 @@
 - name: Install Apache and start the service
-  hosts: 10.0.0.37
+  hosts: all
   become: yes
   vars:
     web_pkg: httpd
