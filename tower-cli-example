@@ -1,0 +1,108 @@
+Ansible Tower or the open source version AWX is a great addition for those of you using Ansible playbooks. One of the the many features is the ability to run playbooks via an API. I am going to go over an example on how to run a playbook using the tower-cli utility.
+The preferred way of installing tower-cli is via PIP.
+
+pip install ansible-tower-cli
+I am not going to go over the configuration of it, but you can follow the quick start documentation here.
+tower-cli-quick-start
+In order to run a job template (playbook) from AWX/Tower, you will need to find the identification number for it. Run the following command find that job id.
+
+root@lita:~# /usr/local/bin/tower-cli job_template list
+== =============================== ========= ======= ===================================
+id              name               inventory project              playbook
+== =============================== ========= ======= ===================================
+19 check-disk-space                        2       6 server/check-disk-space.yml
+12 Data Dog alert tag                      2       6 server/datadog-alert-tag.yml
+ 5 Demo Job Template                       1       4 hello_world.yml
+10 Install centrify                        2       6 server/centrify-install.yml
+13 install_monitoring_tools                2       6 server/install_monitoring_tools.yml
+18 jira-app-restart                        2       6 server/jira-app-restart.yml
+ 9 MySQL check for max_connections         2       6 server/mysql-variable.yml
+11 Remove Centrify                         2       6 server/centrify-remove.yml
+17 xinet directory listing                 2       6 server/directory-listing.yml
+== =============================== ========= ======= ===================================
+In this example I going to run a job template for check-disk-space that is labeled with id 19. I am going to pass two variables to the playbook, the hostname and directory. In order for this to work you need to make sure you have defined these variables by adding a survey to your job template. In my example my survey variables are hostname and directory.
+You can find the survey variables in your job template by running the following command and look for the name of the variables in the json output in lines 14 and 26.
+
+root@lita:~# /usr/local/bin/tower-cli  job_template survey 19
+{
+  "description": "",
+  "name": "",
+  "spec": [
+    {
+      "question_description": "",
+      "min": 4,
+      "default": "",
+      "max": 50,
+      "required": true,
+      "choices": "",
+      "new_question": true,
+      "variable": "hostname",
+      "question_name": "Enter server name",
+      "type": "text"
+    },
+    {
+      "question_description": "",
+      "min": 1,
+      "default": "",
+      "max": 1024,
+      "required": true,
+      "choices": "",
+      "new_question": true,
+      "variable": "directory",
+      "question_name": "Enter directory path",
+      "type": "text"
+    }
+  ]
+}
+Now that we have verified the variables that we need to set in our job template, we can run the command. The “–extra-vars=” flag will be used with the tower-cli job launch –job-template command. The syntax is –extra-vars=’variable-name=”value”‘
+
+/usr/local/bin/tower-cli job launch --job-template 19 --extra-vars='hostname="ops.lax.aofl.com" directory="/opt"'
+Resource changed.
+===== ============ =========================== ======= =======
+ id   job_template           created           status  elapsed
+===== ============ =========================== ======= =======
+13913           19 2018-10-26T04:14:26.350239Z pending 0.0
+===== ============ =========================== ======= =======
+To check the status of the job template you may run the following command.
+
+root@lita:~# /usr/local/bin/tower-cli job get 13913
+===== ============ =========================== ========== =======
+ id   job_template           created             status   elapsed
+===== ============ =========================== ========== =======
+13913           19 2018-10-26T04:14:26.350239Z successful 10.052
+===== ============ =========================== ========== =======
+If you want to see the entire output of the job template as it’s happening then you can use the –monitor flag.
+
+root@lita:~# /usr/local/bin/tower-cli job launch --job-template 19 --extra-vars='hostname="ops.lax.aofl.com" directory="/opt"' --monitor
+------Starting Standard Out Stream------
+Identity added: /tmp/awx_13916_WP3LHC/credential_2 (/tmp/awx_13916_WP3LHC/credential_2)
+PLAY [Find what is consuming disk space] ***************************************
+TASK [Gathering Facts] *********************************************************
+ok: [ops.lax.aofl.com]
+TASK [shell] *******************************************************************
+changed: [ops.lax.aofl.com]
+TASK [debug] *******************************************************************
+ok: [ops.lax.aofl.com] => {
+    "result.stdout_lines": [
+        "1571568\\t/opt",
+        "410088\\t/opt/gearmand",
+        "410084\\t/opt/gearmand/gearmand-1.1.15",
+        "338780\\t/opt/datadog-agent",
+        "312968\\t/opt/threatstack",
+        "256768\\t/opt/datadog-agent/embedded",
+        "216496\\t/opt/threatstack/cloudsight",
+        "216448\\t/opt/threatstack/cloudsight/logs",
+        "171896\\t/opt/datadog-agent/embedded/lib",
+        "165616\\t/opt/gearmand/gearmand-1.1.15/t"
+    ]
+}
+PLAY RECAP *********************************************************************
+ops.lax.aofl.com           : ok=3    changed=1    unreachable=0    failed=0
+------End of Standard Out Stream--------
+Resource changed.
+===== ============ =========================== ========== =======
+ id   job_template           created             status   elapsed
+===== ============ =========================== ========== =======
+13916           19 2018-10-26T04:17:56.976580Z successful 10.169
+===== ============ =========================== ========== =======
+I hope this helps some of you wondering how to run playbooks using Tower’s/AWX’s API.
